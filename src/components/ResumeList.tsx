@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { FileText, Download, Trash2, Calendar } from "lucide-react";
+import { FileText, Download, Trash2, Calendar, Edit2, File } from "lucide-react";
 import { format } from "date-fns";
 
 interface Resume {
@@ -22,6 +22,8 @@ interface ResumeListProps {
 const ResumeList = ({ userId }: ResumeListProps) => {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editedName, setEditedName] = useState("");
 
   const fetchResumes = async () => {
     try {
@@ -57,7 +59,9 @@ const ResumeList = ({ userId }: ResumeListProps) => {
     };
 
     window.addEventListener("resume-uploaded", handleResumeUploaded);
-    return () => window.removeEventListener("resume-uploaded", handleResumeUploaded);
+    return () => {
+      window.removeEventListener("resume-uploaded", handleResumeUploaded);
+    };
   }, [userId]);
 
   const handleDownload = async (resume: Resume) => {
@@ -91,6 +95,33 @@ const ResumeList = ({ userId }: ResumeListProps) => {
     }
   };
 
+  const handleRename = async (resume: Resume) => {
+    if (!editedName.trim() || editedName === resume.file_name) {
+      setEditingId(null);
+      setEditedName("");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("resumes")
+        .update({ file_name: editedName })
+        .eq("id", resume.id);
+
+      if (error) throw error;
+
+      setResumes(resumes.map(r => 
+        r.id === resume.id ? { ...r, file_name: editedName } : r
+      ));
+      setEditingId(null);
+      setEditedName("");
+      toast.success("Resume renamed successfully");
+    } catch (error: any) {
+      console.error("Rename failed:", error);
+      toast.error("Failed to rename resume");
+    }
+  };
+
   const handleDelete = async (resume: Resume) => {
     if (!confirm(`Are you sure you want to delete "${resume.file_name}"?`)) return;
 
@@ -111,6 +142,7 @@ const ResumeList = ({ userId }: ResumeListProps) => {
       setResumes(resumes.filter((r) => r.id !== resume.id));
       toast.success("Resume deleted");
     } catch (error: any) {
+      console.error("Delete failed:", error);
       toast.error("Failed to delete resume");
     }
   };
@@ -147,43 +179,92 @@ const ResumeList = ({ userId }: ResumeListProps) => {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {resumes.map((resume) => (
               <div
                 key={resume.id}
-                className="flex items-center gap-4 p-4 border border-border rounded-lg hover:border-primary/50 transition-colors"
+                className="border border-border rounded-lg overflow-hidden hover:border-primary/50 transition-all hover:shadow-lg"
               >
-                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
-                  <FileText className="w-5 h-5 text-primary" />
+                <div className="w-full h-14 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 flex items-center gap-3 px-4 border-b border-border text-muted-foreground">
+                  <div className="text-2xl">
+                    {resume.mime_type === 'application/pdf' ? '📑' : 
+                     resume.mime_type.startsWith('image/') ? '🖼️' : 
+                     resume.mime_type.includes('word') ? '📝' : '📄'}
+                  </div>
+                  <span className="text-sm font-medium truncate">{resume.file_name}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium truncate">{resume.file_name}</h3>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                    <span>{(resume.file_size / 1024 / 1024).toFixed(2)} MB</span>
+
+                {/* Info Section */}
+                <div className="p-4 space-y-3">
+                  {/* File Name with Edit */}
+                  <div className="flex items-center gap-2">
+                    {editingId === resume.id ? (
+                      <input
+                        type="text"
+                        value={editedName}
+                        onChange={(e) => setEditedName(e.target.value)}
+                        onBlur={() => handleRename(resume)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleRename(resume);
+                          if (e.key === 'Escape') {
+                            setEditingId(null);
+                            setEditedName("");
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 text-sm font-semibold border border-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                        autoFocus
+                      />
+                    ) : (
+                      <>
+                        <h3 className="flex-1 font-semibold text-sm truncate" title={resume.file_name}>
+                          {resume.file_name}
+                        </h3>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingId(resume.id);
+                            setEditedName(resume.file_name);
+                          }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Metadata */}
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <File className="w-3 h-3" />
+                      {(resume.file_size / 1024 / 1024).toFixed(2)} MB
+                    </span>
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {format(new Date(resume.uploaded_at), "MMM d, yyyy")}
                     </span>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDownload(resume)}
-                    className="gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDelete(resume)}
-                    className="gap-2 text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleDownload(resume)}
+                      className="flex-1 gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDelete(resume)}
+                      className="gap-2 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -195,3 +276,5 @@ const ResumeList = ({ userId }: ResumeListProps) => {
 };
 
 export default ResumeList;
+
+

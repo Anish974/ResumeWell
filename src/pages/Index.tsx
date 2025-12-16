@@ -93,6 +93,9 @@ const Index = () => {
             <span>Built with security and privacy at its core</span>
           </div>
           <p>&copy; 2025 ResumeWell. All rights reserved.</p>
+          <p className="mt-4 text-sm">
+            Made by <span className="font-semibold text-primary">Anish</span>
+          </p>
         </div>
       </footer>
     </div>

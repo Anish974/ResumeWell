@@ -148,9 +148,16 @@ const Auth = () => {
             </div>
           </CardContent>
         </Card>
+
+        <footer className="mt-8 text-center text-xs text-muted-foreground">
+          <p>
+            Made by <span className="font-semibold text-primary">Anish</span>
+          </p>
+        </footer>
       </div>
     </div>
   );
 };
 
 export default Auth;
+

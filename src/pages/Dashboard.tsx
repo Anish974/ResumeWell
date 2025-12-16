@@ -87,6 +87,14 @@ const Dashboard = () => {
           <ResumeList userId={session.user.id} />
         </div>
       </main>
+
+      <footer className="container mx-auto px-4 py-8 mt-16 border-t border-border/50">
+        <div className="text-center text-sm text-muted-foreground">
+          <p className="mb-2">
+            Made by <span className="font-semibold text-primary">Anish</span>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
